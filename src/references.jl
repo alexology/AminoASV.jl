@@ -99,7 +99,12 @@ function fetch_bold_records(family; timeout=7200, page_size=50000,
         # Do not persist an unready query as an empty, completed download.
         if !isnothing(cache_dir) && total>0
             mkpath(cache_dir)
-            pages=basename(mktempdir(cache_dir;prefix="pages_"))
+            # Pages must survive the Julia session (no automatic cleanup);
+            # page sets of earlier, abandoned queries are removed here.
+            for old in readdir(cache_dir;join=true)
+                isdir(old) && startswith(basename(old),"pages_") && rm(old;recursive=true)
+            end
+            pages=basename(mktempdir(cache_dir;prefix="pages_",cleanup=false))
             state=(version=1,family=family,page_size=page_size,query_id=string(id),total=total,pages=pages)
             write_json_checkpoint(state_path,state)
         end
@@ -190,7 +195,8 @@ end
 `show_progress=true` reports families, downloads, filtering and each species
 before alignment. Filtering updates use `progress_interval` seconds (default 5).
 Complete BOLD pages are cached under `alignment_dir/bold_downloads/<family>`.
-With `overwrite=false`, interrupted downloads resume from that cache;
+With `overwrite=false`, interrupted downloads resume from that cache, also in a
+new Julia session;
 `overwrite=true` starts a fresh query and download. New species outputs are
 prepared before installation; obsolete species files, derived genus/family
 profiles and their curation checkpoints are removed after a successful build.

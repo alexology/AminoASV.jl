@@ -464,6 +464,7 @@ end
         @test getfield.(fresh,:processid)==["fresh_0","fresh_2"]
         @test length(urls)==5 # New query, count, and all three pages.
         @test JSON3.read(read(joinpath(dir,"download.json"),String)).pages!=state.pages
+        @test !isdir(pages) # The abandoned page set is removed by the new query.
         failed=(url;timeout=0)->throw(InterruptException())
         @test_throws InterruptException AASV.fetch_bold_records("Family";
             cache_dir=dir,page_size=1,requester=failed,overwrite=true)
@@ -475,6 +476,37 @@ end
         @test_throws ErrorException AASV.fetch_bold_records("Family";cache_dir=dir,requester)
         state=JSON3.read(read(joinpath(dir,"download.json"),String))
         @test isempty(readdir(joinpath(dir,state.pages)))
+    end
+end
+
+@testset "BOLD pages persist after the Julia session" begin
+    mktempdir() do dir
+        page(offset)=(data=[(processid="p$offset",identification="Genus species",
+            marker_code="COI-5P",nuc="ATG")],)
+        # A separate Julia process saves the first page and stops at the second.
+        script="""
+        using AASV
+        requester(url;timeout=0)=occursin("/query?",url) ? (query_id="q",) :
+            occursin("length=0",url) ? (recordsTotal=2,) :
+            endswith(url,"start=0") ? (data=[(processid="p0",identification="Genus species",
+                marker_code="COI-5P",nuc="ATG")],) : throw(InterruptException())
+        try
+            AASV.fetch_bold_records("Family";cache_dir=$(repr(dir)),page_size=1,requester,sleeper=_->nothing)
+        catch e
+            e isa InterruptException || rethrow()
+        end
+        """
+        run(`$(Base.julia_cmd()) --startup-file=no --project=$(Base.active_project()) -e $script`)
+        state=JSON3.read(read(joinpath(dir,"download.json"),String))
+        @test isfile(joinpath(dir,state.pages,"0.json"))
+        urls=String[]
+        requester=function(url;timeout=0)
+            push!(urls,url)
+            page(parse(Int,last(split(url,"start="))))
+        end
+        records=AASV.fetch_bold_records("Family";cache_dir=dir,page_size=1,requester,sleeper=_->nothing)
+        @test getfield.(records,:processid)==["p0","p1"]
+        @test length(urls)==1 && endswith(only(urls),"start=1")
     end
 end
 
