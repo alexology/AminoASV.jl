@@ -510,6 +510,39 @@ end
     end
 end
 
+@testset "Sample FASTQ selection for read quality" begin
+    mktempdir() do dir
+        reads=mkpath(joinpath(dir,"trimmed"))
+        out=mkpath(joinpath(dir,"output"))
+        # Q40 in S1, Q0 in S10, Q20 in S2: one identical read in each file.
+        for (name,q) in (("S1",'I'),("S10",'!'),("trimmed_S2_R1",'5'))
+            write(joinpath(reads,name*".fastq"),"@read1\nATGGCT\n+\n"*repeat(q,6)*"\n")
+        end
+        mock=joinpath(dir,"vsearch_mock.jl")
+        write(mock,"""
+        # Deterministic VSEARCH stand-in: every read matches the query.
+        if "--usearch_global" in ARGS
+            write(ARGS[findfirst(==("--userout"),ARGS)+1],"read1\\n")
+        else
+            cp(ARGS[findfirst(==("--fastx_getseqs"),ARGS)+1],ARGS[findfirst(==("--fastqout"),ARGS)+1];force=true)
+        end
+        """)
+        vsearch=`$(Base.julia_cmd()) --startup-file=no $mock`
+        names=["S1","S10","S2"]
+        @test AASV.mapped_qualities("ATGGCT","query",out,vsearch,reads,["S1"],names,40)==[fill(1e-4,6)]
+        @test AASV.mapped_qualities("ATGGCT","query",out,vsearch,reads,["S2"],names,40)≈[fill(0.01,6)]
+        files=AASV.sample_fastq_files(reads,names)
+        @test basename.(files["S10"])==["S10.fastq"] && basename.(files["S2"])==["trimmed_S2_R1.fastq"]
+        @test AASV.sample_token("S1.trimmed","S1") && !AASV.sample_token("S10","S1") && !AASV.sample_token("XS1","S1")
+        write(joinpath(reads,"S1_S2.fastq"),"")
+        @test_throws ArgumentError AASV.sample_fastq_files(reads,names)
+        # The ambiguity stops the analysis before any ASV is processed.
+        input=DataFrame(family=["Family"],genus=["Genus"],species=["Genus a"],ASV=[DEMO_DNA],S1=[1],S2=[0],S10=[0])
+        @test_throws ArgumentError asv_functional_structure!(input;output_dir=out,alignment_dir=dir,
+            vsearch_path=vsearch,trimmed_folder=reads)
+    end
+end
+
 @testset "BOLD pagination and retry" begin
     urls=String[]
     requester=function(url;timeout=0)

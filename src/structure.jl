@@ -164,13 +164,44 @@ function quality_probabilities(path,ee)
     qualities
 end
 
-function mapped_qualities(query_dna,query_id,output_dir,vsearch_path,trimmed_folder,asv_samples,ee)
+# A sample name selects a FASTQ when it is a whole token of the file name,
+# bounded by its ends or by non-alphanumeric characters: S1 selects S1.fastq
+# and trimmed_S1_R1.fq, not S10.fastq. (R aasv matches any substring.)
+function sample_token(name,sample)
+    isempty(sample) && return false
+    boundary(i)=!(isletter(name[i]) || isdigit(name[i]))
+    i=firstindex(name)
+    while (r=findnext(sample,name,i))!==nothing
+        (first(r)==firstindex(name) || boundary(prevind(name,first(r)))) &&
+            (last(r)==lastindex(name) || boundary(nextind(name,last(r)))) && return true
+        i=nextind(name,first(r))
+    end
+    false
+end
+
+"""FASTQ files of each sample in `trimmed_folder`, matched by whole-token
+sample names. A file matched by several samples raises `ArgumentError`.
+"""
+function sample_fastq_files(trimmed_folder,sample_names)
+    files=Dict(String(s)=>String[] for s in sample_names)
+    for path in sort(readdir(trimmed_folder;join=true))
+        lower=lowercase(path)
+        (isfile(path) && (endswith(lower,".fastq") || endswith(lower,".fq"))) || continue
+        stem=first(splitext(basename(path)))
+        owners=[s for s in keys(files) if sample_token(stem,s)]
+        length(owners)>1 && throw(ArgumentError("FASTQ $(basename(path)) matches several samples: $(join(sort(owners),", "))"))
+        isempty(owners) || push!(files[only(owners)],path)
+    end
+    files
+end
+
+function mapped_qualities(query_dna,query_id,output_dir,vsearch_path,trimmed_folder,asv_samples,sample_names,ee)
     dir=joinpath(output_dir,"vsearch_map_back")
     mkpath(dir)
     query=joinpath(dir,query_id*".fasta")
     write_fasta([Sequence(query_id,query_dna)],query)
-    paths=sort(filter(p->isfile(p) && (endswith(lowercase(p),".fastq") || endswith(lowercase(p),".fq")) &&
-        any(s->occursin(s,basename(p)),asv_samples),readdir(trimmed_folder;join=true)))
+    files=sample_fastq_files(trimmed_folder,union(string.(sample_names),string.(asv_samples)))
+    paths=sort(reduce(vcat,(files[string(s)] for s in asv_samples);init=String[]))
     qualities=Vector{Vector{Float64}}()
     for (i,path) in enumerate(paths)
         tab=joinpath(dir,"$(query_id)_$(i)_mapping_results.tsv")
@@ -191,12 +222,14 @@ end
 
 """Audit a query against an amino-acid reference profile; report novel residues,
 codon coordinates, Grantham distances, ORF incompatibilities and hydrophobicity.
-Optional VSEARCH mapping uses Phred+33 error probabilities for read-back quality.
+Optional VSEARCH mapping uses Phred+33 error probabilities for read-back quality,
+from the FASTQ files of `asv_samples`. `sample_names` lists every sample of the
+study, so that a file matching several names is rejected (default `asv_samples`).
 """
 function assess_asv(;query_dna,query_id,ref_aa_aligned,ref_nt,
                     output_dir=nothing,tax_lev=SpeciesRank,genetic_code="5",
                     hydro_threshold=0.1,hydro_window=7,vsearch_path=nothing,
-                    trimmed_folder=nothing,asv_samples=String[],ee=40,kwargs...)
+                    trimmed_folder=nothing,asv_samples=String[],sample_names=asv_samples,ee=40,kwargs...)
     hydro_window>0 || throw(ArgumentError("hydro_window must be positive"))
     0<=hydro_threshold<=1 || throw(ArgumentError("Invalid hydro_threshold"))
     query_id=safe_name(string(query_id))
@@ -238,7 +271,7 @@ function assess_asv(;query_dna,query_id,ref_aa_aligned,ref_nt,
     qualities=Vector{Vector{Float64}}()
     if !isnothing(vsearch_path)
         (isnothing(trimmed_folder) || isnothing(output_dir)) && throw(ArgumentError("VSEARCH requires trimmed_folder and output_dir"))
-        isempty(illegal) || (qualities=mapped_qualities(query_dna,query_id,output_dir,vsearch_path,trimmed_folder,asv_samples,ee))
+        isempty(illegal) || (qualities=mapped_qualities(query_dna,query_id,output_dir,vsearch_path,trimmed_folder,asv_samples,sample_names,ee))
     end
     observations=MutationObservation[]
     for j in illegal
@@ -340,6 +373,13 @@ function asv_functional_structure!(asv_taxonomy;output_dir,alignment_dir,vsearch
         end
     end
     samples=[c for c in propertynames(df) if c!=:ASV_id && Base.nonmissingtype(eltype(df[!,c])) <: Number]
+    sample_names=string.(samples)
+    # Check the sample-to-FASTQ association once, before any ASV is analysed.
+    if !isnothing(vsearch_path)
+        files=sample_fastq_files(trimmed_folder,sample_names)
+        unmatched=sort([s for (s,paths) in files if isempty(paths)])
+        isempty(unmatched) || @warn "Samples without FASTQ files in trimmed_folder" samples=unmatched
+    end
     all_hydro=DataFrame(ASV_id=String[],tax_lev=String[],species=Union{Missing,String}[],
         global_min=Union{Missing,Float64}[],global_max=Union{Missing,Float64}[],global_score=Union{Missing,Float64}[],
         global_pass=Union{Missing,Bool}[],local_violation_rate=Union{Missing,Float64}[],structural_verdict=String[])
@@ -371,7 +411,7 @@ function asv_functional_structure!(asv_taxonomy;output_dir,alignment_dir,vsearch
             isempty(refs) && continue
             result=calculate_asv_distance(;query_dna=row.ASV,query_id=row.ASV_id,ref_aa_aligned=refs,ref_nt=nt,
                 output_dir,tax_lev=level,genetic_code,hydro_threshold,hydro_window,vsearch_path,trimmed_folder,
-                asv_samples=present,ee,kwargs...)
+                asv_samples=present,sample_names,ee,kwargs...)
             append!(local_hydro,add_metadata(result.hydro,row,level);cols=:union)
             append!(all_aa,add_metadata(result.aa,row,level);cols=:union)
         end
