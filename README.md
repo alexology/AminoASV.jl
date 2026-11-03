@@ -83,6 +83,10 @@ input/output adapters, while the core uses concrete structures. Sequences are
 vectors of `Sequence(id, sequence)` with unique names. The `alignment_dir` and
 `output_dir` arguments accept Windows, Linux and macOS paths. Use
 `overwrite=true` to rebuild references that already exist.
+Species rebuilds prepare all outputs before installation, remove obsolete
+species files and invalidate that family's genus/family profiles and curation
+checkpoints. Rebuild those profiles afterwards with `align_genus_seq!` and
+`align_family_seq!`; other families and non-reference files are preserved.
 
 ## Julia API
 

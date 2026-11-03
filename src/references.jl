@@ -139,6 +139,51 @@ end
 valid_species(s) = !isnothing(s) && !ismissing(s) && count(==(' '),s)==1 &&
     !occursin(r"cf\.|sp\.|/|[0-9]",s) && !isempty(s)
 
+# Install only after every new species has aligned successfully. The completion
+# marker remains absent if installation fails, so a retry rebuilds the family.
+function install_species_references!(prepared, alignment_dir, family)
+    for (root, subdir, extension) in (("raw_sequences_nt", "species", ".fasta"),
+            ("raw_sequences", "species", ".fasta"), ("alignments", "species", ".fasta"),
+            ("aa_tables", "", ".txt"))
+        source = joinpath(prepared, root, family, subdir)
+        destination = joinpath(alignment_dir, root, family, subdir)
+        files = isdir(source) ? readdir(source) : String[]
+        keep = Set(files)
+        isempty(files) && !isdir(destination) && continue
+        mkpath(destination)
+        for name in files
+            temporary, io = mktemp(destination)
+            close(io)
+            try
+                cp(joinpath(source, name), temporary; force=true)
+                rename_atomic(temporary, joinpath(destination, name))
+            finally
+                isfile(temporary) && rm(temporary)
+            end
+        end
+        for path in readdir(destination; join=true)
+            isfile(path) && endswith(lowercase(path), extension) && !(basename(path) in keep) && rm(path)
+        end
+    end
+    # Derived profiles and curation checkpoints belong to the old species set.
+    for rank in ("species", "genus", "family")
+        if rank != "species"
+            foreach(rm, fasta_files(joinpath(alignment_dir, "alignments", family, rank)))
+            reports = joinpath(alignment_dir, "logs", "gap_causing_references", rank, family)
+            if isdir(reports)
+                foreach(rm, filter(p -> isfile(p) && endswith(p, ".tsv"), readdir(reports; join=true)))
+            end
+        end
+        for type in ("alignments", "raw_sequences")
+            rm(joinpath(alignment_dir, "checkpoints", "check_alignment", type, rank, family*".json"); force=true)
+        end
+        cache = joinpath(alignment_dir, "checkpoints", "filter_divergent", rank, family)
+        isdir(cache) && rm(cache; recursive=true)
+        rm(joinpath(alignment_dir, "logs", "divergent_references", rank, family*".tsv"); force=true)
+    end
+    nothing
+end
+
 """Download, filter, translate and align species references for all input families.
 `records_provider(family)` may supply local BOLD-like records (`processid`,
 `identification`, `sequence`). Outputs follow the original R directory layout.
@@ -146,7 +191,10 @@ valid_species(s) = !isnothing(s) && !ismissing(s) && count(==(' '),s)==1 &&
 before alignment. Filtering updates use `progress_interval` seconds (default 5).
 Complete BOLD pages are cached under `alignment_dir/bold_downloads/<family>`.
 With `overwrite=false`, interrupted downloads resume from that cache;
-`overwrite=true` starts a fresh query and download.
+`overwrite=true` starts a fresh query and download. New species outputs are
+prepared before installation; obsolete species files, derived genus/family
+profiles and their curation checkpoints are removed after a successful build.
+Other families and files outside the managed formats are preserved.
 """
 function align_species_seq!(taxonomy; alignment_dir=pwd(), overwrite=false,
                            timeout=7200, min_length=500, max_length=1000,
@@ -204,25 +252,28 @@ function align_species_seq!(taxonomy; alignment_dir=pwd(), overwrite=false,
         end
         species=sort(collect(keys(groups)))
         show_progress && @info "Species references: filtering completed" family records=total_records species=length(species)
-        # Independent species use outer Julia tasks. Limit each batch to the
-        # thread budget so completed alignments do not accumulate in memory.
-        for batch_start in 1:thread_budget:length(species)
-            batch_indices=batch_start:min(batch_start+thread_budget-1,length(species))
-            batch_species=species[batch_indices]
-            nt_groups=[unique(r->r.id,groups[sp]) for sp in batch_species]
-            aa_groups=[[Sequence(r.id,something(find_translation(r.sequence;genetic_code)).amino_acids)
-                for r in nt] for nt in nt_groups]
-            for (offset,(sp,nt)) in enumerate(zip(batch_species,nt_groups))
-                species_index=batch_start+offset-1
-                show_progress && @info "Species references: aligning species" family species=sp species_index total_species=length(species) sequences=length(nt)
+        mktempdir() do prepared
+            # Independent species use outer Julia tasks. Limit each batch to the
+            # thread budget so completed alignments do not accumulate in memory.
+            for batch_start in 1:thread_budget:length(species)
+                batch_indices=batch_start:min(batch_start+thread_budget-1,length(species))
+                batch_species=species[batch_indices]
+                nt_groups=[unique(r->r.id,groups[sp]) for sp in batch_species]
+                aa_groups=[[Sequence(r.id,something(find_translation(r.sequence;genetic_code)).amino_acids)
+                    for r in nt] for nt in nt_groups]
+                for (offset,(sp,nt)) in enumerate(zip(batch_species,nt_groups))
+                    species_index=batch_start+offset-1
+                    show_progress && @info "Species references: aligning species" family species=sp species_index total_species=length(species) sequences=length(nt)
+                end
+                aligned=ProfileAlignments.align_sequence_sets(aa_groups;threads=thread_budget,kwargs...)
+                for (sp,nt,aa,result) in zip(batch_species,nt_groups,aa_groups,aligned)
+                    write_fasta(nt,joinpath(prepared,"raw_sequences_nt",family,"species",sp*".fasta"))
+                    write_fasta(aa,joinpath(prepared,"raw_sequences",family,"species",sp*".fasta"))
+                    write_fasta(result.records,joinpath(prepared,"alignments",family,"species",sp*".fasta"))
+                    write_table(joinpath(prepared,"aa_tables",family,sp*".txt"),aa_table(nt;genetic_code))
+                end
             end
-            aligned=ProfileAlignments.align_sequence_sets(aa_groups;threads=thread_budget,kwargs...)
-            for (sp,nt,aa,result) in zip(batch_species,nt_groups,aa_groups,aligned)
-                write_fasta(nt,joinpath(alignment_dir,"raw_sequences_nt",family,"species",sp*".fasta"))
-                write_fasta(aa,joinpath(alignment_dir,"raw_sequences",family,"species",sp*".fasta"))
-                write_fasta(result.records,joinpath(alignment_dir,"alignments",family,"species",sp*".fasta"))
-                write_table(joinpath(alignment_dir,"aa_tables",family,sp*".txt"),aa_table(nt;genetic_code))
-            end
+            install_species_references!(prepared, alignment_dir, family)
         end
         if !isempty(groups)
             mkpath(dirname(marker))

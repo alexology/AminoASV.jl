@@ -199,6 +199,55 @@ end
 end
 
 const DEMO_DNA="ATGGCTGCTGCTGCTGCTGCTGCTGCT"
+@testset "Species refresh removes obsolete references and derived caches" begin
+    mktempdir() do dir
+        taxonomy = DataFrame(family=["Family"], genus=["Genus"], species=["Genus alpha"])
+        record(sp, id, seq=DEMO_DNA) = (processid=id, identification=sp, sequence=seq)
+        run(provider; kwargs...) = align_species_seq!(taxonomy; alignment_dir=dir,
+            records_provider=provider, min_length=0, show_progress=false, threads=1, kwargs...)
+        put(path, text) = (mkpath(dirname(path)); write(path, text); path)
+        run(_ -> [record("Genus alpha", "one")])
+        align_genus_seq!(; alignment_dir=dir, show_progress=false)
+        align_family_seq!(; alignment_dir=dir, show_progress=false)
+        original = joinpath(dir, "alignments", "Family", "species", "Genus_alpha.fasta")
+        before = read(original)
+        note = put(joinpath(dirname(original), "notes.md"), "keep this note")
+        other = put(joinpath(dir, "alignments", "Other", "species", "Other.fasta"), ">other\nAAA\n")
+        cache = put(joinpath(dir, "checkpoints", "filter_divergent", "species", "Family", "pending.json"), "old")
+        check = put(joinpath(dir, "checkpoints", "check_alignment", "alignments", "species", "Family.json"), "old")
+        report = put(joinpath(dir, "logs", "gap_causing_references", "genus", "Family", "Genus.tsv"), "old")
+        # The first new species is prepared, then the next one's alignment fails.
+        failing = _ -> [record("Genus new", "first"), record("Zeta new", "second"),
+                        record("Zeta new", "third", "ATGGATGCTGCTGCTGCTGCTGCTGCT")]
+        @test_throws ArgumentError run(failing; overwrite=true, max_cells=1)
+        @test read(original) == before
+        @test !isfile(joinpath(dirname(original), "Genus_new.fasta"))
+        @test isfile(cache)
+        @test !isfile(joinpath(dir, "raw_sequences", "Family", ".complete"))
+
+        run(_ -> [record("Genus beta", "two")]; overwrite=true)
+        for root in ("raw_sequences_nt", "raw_sequences", "alignments")
+            directory = joinpath(dir, root, "Family", "species")
+            @test !isfile(joinpath(directory, "Genus_alpha.fasta"))
+            @test isfile(joinpath(directory, "Genus_beta.fasta"))
+        end
+        @test !isfile(joinpath(dir, "aa_tables", "Family", "Genus_alpha.txt"))
+        @test isfile(joinpath(dir, "aa_tables", "Family", "Genus_beta.txt"))
+        @test !isfile(cache) && !isfile(check) && !isfile(report)
+        @test isempty(AASV.fasta_files(joinpath(dir, "alignments", "Family", "genus")))
+        @test isempty(AASV.fasta_files(joinpath(dir, "alignments", "Family", "family")))
+        @test isfile(joinpath(dir, "raw_sequences", "Family", ".complete"))
+        align_genus_seq!(; alignment_dir=dir, taxon="Family", show_progress=false)
+        @test only(read_fasta(joinpath(dir, "alignments", "Family", "genus", "Genus.fasta"))).id == "Genus_beta__two"
+        @test_logs (:warn, r"No usable references") run(_ -> NamedTuple[]; overwrite=true)
+        @test isempty(AASV.fasta_files(dirname(original)))
+        @test isempty(AASV.fasta_files(joinpath(dir, "alignments", "Family", "genus")))
+        @test !isfile(joinpath(dir, "raw_sequences", "Family", ".complete"))
+        @test read(note, String) == "keep this note"
+        @test read(other, String) == ">other\nAAA\n"
+    end
+end
+
 @testset "Species completion marker after failed overwrite" begin
     mktempdir() do dir
         taxonomy=DataFrame(family=["Family"],genus=["Genus"],species=["Genus species"])
