@@ -1,5 +1,5 @@
 """
-    AASV
+    AminoASV
 
 Functional analysis of COI ASVs, a Julia implementation of the R pipeline
 aasv: reference profiles per species, genus and family
@@ -11,7 +11,7 @@ mutation audit of each ASV ([`assess_asv`](@ref),
 ([`classify_asv`](@ref)). Sequences and alignments are shared with
 ProfileAlignments.jl.
 """
-module AASV
+module AminoASV
 
 using CSV, DataFrames, HTTP, JSON3, SHA, Statistics, XLSX
 import BioSequences, FASTX

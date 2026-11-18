@@ -1,4 +1,4 @@
-using AASV, DataFrames, CSV, Statistics
+using AminoASV, DataFrames, CSV, Statistics
 root=joinpath(@__DIR__,"..","results","benchmark")
 times=vcat(CSV.read(joinpath(root,"julia_times.csv"),DataFrame),CSV.read(joinpath(root,"r_times.csv"),DataFrame))
 summary=combine(groupby(times[times.phase.=="warm",:],[:language,:operation,:n]),:seconds=>median=>:seconds)

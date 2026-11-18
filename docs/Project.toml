@@ -1,10 +1,10 @@
 [deps]
-AASV = "1e996073-fd1e-47a6-8fc1-745f37a6f708"
+AminoASV = "1e996073-fd1e-47a6-8fc1-745f37a6f708"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 ProfileAlignments = "c8a238b2-8c9b-4c0d-9a9d-98fcb4358f4c"
 
 [sources]
-AASV = {path = ".."}
+AminoASV = {path = ".."}
 ProfileAlignments = {path = "../../ProfileAlignments.jl"}
 
 [compat]

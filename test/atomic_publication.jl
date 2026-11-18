@@ -8,7 +8,7 @@
                 source, 0x80000000, 0x00000001, C_NULL, 0x00000003, 0x00000000, C_NULL)
             @test handle != Ptr{Cvoid}(typemax(UInt))
             try
-                @test_throws Base.IOError AASV.rename_atomic(source, destination)
+                @test_throws Base.IOError AminoASV.rename_atomic(source, destination)
                 @test !isfile(destination)
                 @test read(source, String) == "new"
             finally
@@ -16,7 +16,7 @@
             end
         end
         write(destination, "old")
-        AASV.rename_atomic(source, destination)
+        AminoASV.rename_atomic(source, destination)
         @test read(destination, String) == "new"
         @test !isfile(source)
     end

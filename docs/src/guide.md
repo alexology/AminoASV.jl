@@ -1,4 +1,4 @@
-# Using AASV from Julia
+# Using AminoASV from Julia
 
 ## Julia API
 
@@ -130,7 +130,7 @@ Independent species of the same family are aligned in batches with tasks from
 the separate `ProfileAlignments` package; each batch is limited to the number
 of available threads to bound memory use and avoid nested parallelism.
 Alignment algorithms, presets and numerical structures live in the
-`ProfileAlignments` package; AASV handles downloads, taxonomy and files.
+`ProfileAlignments` package; AminoASV handles downloads, taxonomy and files.
 
 `align_genus_seq!` and `align_family_seq!` report the families and taxa
 processed or reused, the number of sequences in the profiles to merge, the

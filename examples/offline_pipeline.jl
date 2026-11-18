@@ -1,4 +1,4 @@
-using AASV, DataFrames, CSV
+using AminoASV, DataFrames, CSV
 
 # Small synthetic reference set: runs without network or VSEARCH.
 reference_dna = "ATGGCTGCTGCTGCTGCTGCTGCTGCT"

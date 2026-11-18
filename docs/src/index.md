@@ -1,4 +1,4 @@
-# AASV.jl
+# AminoASV.jl
 
 Julia implementation of the [aasv](https://github.com/alexology/aasv) pipeline
 for the functional analysis of COI ASVs. The scientific formulas are compatible
@@ -8,6 +8,13 @@ the architecture uses Julia types, dispatch and conventions.
 This package is part of an experimental effort to use AI to port
 bioinformatics and quantitative ecology packages to Julia, with the goal of
 creating a unified environment for high performance scientific computing.
+
+The package was first called `AASV` (versions up to 0.2.0). It is now
+`AminoASV` (same UUID, repository `AminoASV.jl`), because the General
+registry does not accept names shorter than five characters or written in
+capitals, and its version restarts at 0.1.0 for the first registration.
+Replace `using AASV` with `using AminoASV`; the function names are
+unchanged.
 
 Requires Julia 1.10 or later. Does not require R, Biostrings or DECIPHER.
 
@@ -26,8 +33,8 @@ registered, so add it first; `setup.jl` does the same for a local checkout):
 ```julia
 using Pkg
 Pkg.develop(url="https://github.com/alexology/ProfileAlignments.jl")
-Pkg.develop(url="https://github.com/alexology/AASV.jl")
-using AASV, BioSequences
+Pkg.develop(url="https://github.com/alexology/AminoASV.jl")
+using AminoASV, BioSequences
 
 record = Sequence("COI", dna"ATGCCAGCA")
 protein = best_translation(record.sequence)
@@ -36,7 +43,7 @@ protein = best_translation(record.sequence)
 ## Pipeline with real data
 
 ```julia
-using AASV, DataFrames, CSV
+using AminoASV, DataFrames, CSV
 
 taxonomy = CSV.read("taxonomy.csv", DataFrame)
 # Required columns: family, genus, species.

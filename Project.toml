@@ -1,6 +1,6 @@
-name = "AASV"
+name = "AminoASV"
 uuid = "1e996073-fd1e-47a6-8fc1-745f37a6f708"
-version = "0.2.0"
+version = "0.1.0"
 authors = ["Alex Laini", "Samuele Voyron", "Laura Gruppuso"]
 
 [deps]

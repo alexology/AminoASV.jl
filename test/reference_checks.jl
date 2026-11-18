@@ -9,7 +9,7 @@
             state=JSON3.read(read(path,String))
             payload=Dict{String,Any}(String(k)=>v for (k,v) in pairs(state))
             payload["sentinel"]="reused"
-            AASV.write_json_checkpoint(path,payload)
+            AminoASV.write_json_checkpoint(path,payload)
         end
         decorate(checkpoint)
         @test check_alignments!(;alignment_dir=dir,show_progress=false)==[path]
@@ -64,11 +64,11 @@ end
         @test length(read_fasta(path))==3
         state=JSON3.read(read(checkpoint,String))
         @test String(only(state.removed).sequence)=="d"
-        @test Dict(String(k)=>String(v) for (k,v) in pairs(state.fingerprint))==AASV.reference_fingerprint([path])
+        @test Dict(String(k)=>String(v) for (k,v) in pairs(state.fingerprint))==AminoASV.reference_fingerprint([path])
         before_report=read(report,String)
         payload=Dict{String,Any}(String(k)=>v for (k,v) in pairs(state))
         payload["sentinel"]="reused"
-        AASV.write_json_checkpoint(checkpoint,payload)
+        AminoASV.write_json_checkpoint(checkpoint,payload)
         @test run_filter()==[path]
         @test haskey(JSON3.read(read(checkpoint,String)),:sentinel)
         @test read(report,String)==before_report
@@ -100,20 +100,20 @@ end
         for path in paths
             write_fasta(original,path)
         end
-        before=AASV.reference_fingerprint(paths)
+        before=AminoASV.reference_fingerprint(paths)
         cache=joinpath(dir,"checkpoints","filter_divergent","species","Family")
         mkpath(cache)
         stage=mktempdir(cache;prefix="prepared_",cleanup=false)
         for path in paths
             write_fasta(original[1:3],joinpath(stage,basename(path)))
         end
-        after=AASV.reference_fingerprint(AASV.fasta_files(stage))
+        after=AminoASV.reference_fingerprint(AminoASV.fasta_files(stage))
         rows=[(file=basename(path),taxon=splitext(basename(path))[1],sequence="d",
             distance=1.0,n_start=4,n_retained=3) for path in paths]
-        pending=(version=AASV.DIVERGENT_FILTER_VERSION,
+        pending=(version=AminoASV.DIVERGENT_FILTER_VERSION,
             parameters=(rank="species",max_distance=0.3,min_seqs=4),
             before=before,fingerprint=after,removed=rows,stage=basename(stage))
-        AASV.write_json_checkpoint(joinpath(cache,"pending.json"),pending)
+        AminoASV.write_json_checkpoint(joinpath(cache,"pending.json"),pending)
         # Simulate termination after only the first output was installed.
         cp(joinpath(stage,basename(first(paths))),first(paths);force=true)
         # Windows may also be interrupted between removing and renaming a file.

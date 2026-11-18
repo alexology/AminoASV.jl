@@ -1,11 +1,11 @@
 # API
 
 ```@meta
-CurrentModule = AASV
+CurrentModule = AminoASV
 ```
 
 ```@docs
-AASV
+AminoASV
 ```
 
 ## Reference profiles
@@ -97,7 +97,7 @@ TaxonomicRank
 
 Sequences, alignments and FASTA files are those of
 [ProfileAlignments.jl](https://github.com/alexology/ProfileAlignments.jl),
-re-exported by AASV, so `using AASV` is enough:
+re-exported by AminoASV, so `using AminoASV` is enough:
 
 - `Alignment(records; weights)`: rectangular alignment of `Sequence`
   records, with names, order and normalized positive sequence weights.

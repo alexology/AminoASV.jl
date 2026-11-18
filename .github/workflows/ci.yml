@@ -28,5 +28,5 @@ jobs:
         run: julia --project=. setup.jl
       - name: Test independent alignment package
         run: julia --project=../ProfileAlignments.jl -e 'using Pkg; Pkg.test()'
-      - name: Test AASV
+      - name: Test AminoASV
         run: julia --project=. -e 'using Pkg; Pkg.test()'

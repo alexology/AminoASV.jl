@@ -1,4 +1,4 @@
-using Test, Logging, AASV, BioSequences, DataFrames, CSV, XLSX, HTTP, JSON3, Statistics
+using Test, Logging, AminoASV, BioSequences, DataFrames, CSV, XLSX, HTTP, JSON3, Statistics
 import ProfileAlignments
 include("reference_checks.jl")
 include("divergent_distances.jl")
@@ -7,18 +7,18 @@ include("atomic_publication.jl")
 @testset "Project file is portable" begin
     # Pkg >= 1.11 copies the local ProfileAlignments path from the Manifest into
     # Project.toml on add/rm/update; that path breaks installation elsewhere.
-    project=read(joinpath(pkgdir(AASV),"Project.toml"),String)
+    project=read(joinpath(pkgdir(AminoASV),"Project.toml"),String)
     @test !occursin(r"(?m)^\[sources\]",project)
 end
 
 @testset "Parallel ASVs wait for every task" begin
-    @test AASV.fetch_all([Threads.@spawn i^2 for i in 1:5])==(1:5).^2
+    @test AminoASV.fetch_all([Threads.@spawn i^2 for i in 1:5])==(1:5).^2
     if Threads.nthreads()>1
         # Task 1 fails at once, task 2 blocks: the caller must wait for it.
         release=Channel{Nothing}(1)
         finished=Threads.Atomic{Bool}(false)
         caller=Threads.@spawn try
-            AASV.fetch_all([Threads.@spawn(error("failure at 1")),
+            AminoASV.fetch_all([Threads.@spawn(error("failure at 1")),
                 Threads.@spawn begin take!(release); finished[]=true end])
             nothing
         catch e
@@ -70,22 +70,22 @@ end
     sim=aa_similarity_matrix()
     dense=codon_similarity_matrix()
     @test size(dense)==(64,64)
-    @test dense[findfirst(==("AAA"),AASV.CODONS),findfirst(==("AAT"),AASV.CODONS)]≈2/3
+    @test dense[findfirst(==("AAA"),AminoASV.CODONS),findfirst(==("AAT"),AminoASV.CODONS)]≈2/3
     @test nrow(sim)==4096
     @test only(sim.value[(sim.triplets_1.=="AAA") .& (sim.triplets_2.=="AAA")])==1
     @test only(sim.value[(sim.triplets_1.=="AAA") .& (sim.triplets_2.=="AAT")])≈2/3
 end
 
-matrix(seqs)=AASV.alignment_matrix([Sequence(string(i),s) for (i,s) in enumerate(seqs)])
+matrix(seqs)=AminoASV.alignment_matrix([Sequence(string(i),s) for (i,s) in enumerate(seqs)])
 @testset "Profiles and alignment cleanup" begin
-    @test AASV.inner_gaps(matrix(["--ABC-","A-CDE-","------"]))==[false,true,false]
-    @test AASV.causes_internal_gaps(matrix(["ACXEF","AC-EF","AC-EF","AC-EF"]))==[true,false,false,false]
-    @test !any(AASV.causes_internal_gaps(matrix(["ACDEF","--DEF","ACDE-"])))
+    @test AminoASV.inner_gaps(matrix(["--ABC-","A-CDE-","------"]))==[false,true,false]
+    @test AminoASV.causes_internal_gaps(matrix(["ACXEF","AC-EF","AC-EF","AC-EF"]))==[true,false,false,false]
+    @test !any(AminoASV.causes_internal_gaps(matrix(["ACDEF","--DEF","ACDE-"])))
     records=[Sequence("a","ACDEFG"),Sequence("b","CDEF"),Sequence("dup","ACDEFG")]
     aligned=align_sequences(records)
     @test getfield.(aligned,:id)==["a","b","dup"]
     @test replace.(getfield.(aligned,:sequence),"-"=>"")==getfield.(records,:sequence)
-    @test !any(AASV.inner_gaps(AASV.alignment_matrix(aligned)))
+    @test !any(AminoASV.inner_gaps(AminoASV.alignment_matrix(aligned)))
     @test aligned[1].sequence==aligned[3].sequence
     merged=align_profiles([Sequence("a","AC-EF"),Sequence("b","AC-EF")],[Sequence("c","ACXEF")])
     @test merged[1].sequence==merged[2].sequence
@@ -118,10 +118,10 @@ matrix(seqs)=AASV.alignment_matrix([Sequence(string(i),s) for (i,s) in enumerate
 end
 
 @testset "Hydrophobicity, coordinates and quality" begin
-    @test AASV.grantham_distance('S','F')==155
-    @test AASV.grantham_distance('C','W')==215
-    @test AASV.grantham_distance('L','I')==5
-    @test ismissing(AASV.grantham_distance('X','I'))
+    @test AminoASV.grantham_distance('S','F')==155
+    @test AminoASV.grantham_distance('C','W')==215
+    @test AminoASV.grantham_distance('L','I')==5
+    @test ismissing(AminoASV.grantham_distance('X','I'))
     h=get_hydro_metrics("AAAA";hydro_window=2)
     @test h isa HydrophobicityMetrics
     @test h.global_score≈1.8
@@ -130,7 +130,7 @@ end
     @test only(check_asv_structure("AAAA",(1.0,2.0),fill(1.0,3),fill(2.0,3);hydro_window=2).structural_verdict)=="PASS"
     typed_structure=assess_structure("AAAA",(1.0,2.0),fill(1.0,3),fill(2.0,3);hydro_window=2)
     @test typed_structure isa StructureAssessment
-    @test typed_structure.verdict==AASV.StructurePass
+    @test typed_structure.verdict==AminoASV.StructurePass
     nt=[Sequence("Genus_species__one","ATGGCTGCTGCTGCTGCTGCTGCTGCT")]
     aa=[Sequence(nt[1].id,best_translation(nt[1].sequence))]
     clean=calculate_asv_distance(;query_dna=nt[1].sequence,query_id="clean",ref_aa_aligned=aa,ref_nt=nt)
@@ -140,7 +140,7 @@ end
     result=calculate_asv_distance(;query_dna=query,query_id="mut",ref_aa_aligned=aa,ref_nt=nt)
     typed=assess_asv(;query_dna=query,query_id="mut",ref_aa_aligned=aa,ref_nt=nt)
     @test typed isa ASVAssessment
-    @test typed.status==AASV.ASVValid
+    @test typed.status==AminoASV.ASVValid
     @test only(typed.mutations) isa MutationObservation
     @test only(typed.mutations).query_nt==10:12
     @test result.aa.aa_pos==[4]
@@ -154,7 +154,7 @@ end
     mktempdir() do dir
         path=joinpath(dir,"test.fastq")
         write(path,"@a\nATG\n+\nIII\n@b\nATG\n+\n!!!\n")
-        q=AASV.quality_probabilities(path,1)
+        q=AminoASV.quality_probabilities(path,1)
         @test length(q)==1
         @test sum(q[1])≈0.0003
     end
@@ -163,8 +163,8 @@ end
 function classification_fixture(dir; pos=5, gr=20, mutation="3", quality=0.9999, nref=missing, hydro=0.0)
     resultdir=joinpath(dir,"aa_structure_results")
     mkpath(resultdir)
-    AASV.write_table(joinpath(resultdir,"hydrophobicity.xlsx"),DataFrame(ASV_id=["ASV1","ASV2"],tax_lev=["species","species"],local_violation_rate=[hydro,0.0]))
-    AASV.write_table(joinpath(resultdir,"ASV1_aa_structure.xlsx"),DataFrame(ASV_id=["ASV1"],tax_lev=["species"],aa_pos=[pos],
+    AminoASV.write_table(joinpath(resultdir,"hydrophobicity.xlsx"),DataFrame(ASV_id=["ASV1","ASV2"],tax_lev=["species","species"],local_violation_rate=[hydro,0.0]))
+    AminoASV.write_table(joinpath(resultdir,"ASV1_aa_structure.xlsx"),DataFrame(ASV_id=["ASV1"],tax_lev=["species"],aa_pos=[pos],
         illegal_aa=["F"],ref_aa=["L"],grantham_dist=[gr],triplet_mut_pos=[mutation],median_quality_prob=[quality],n_sequences_ali=[nref]))
 end
 
@@ -234,14 +234,14 @@ const DEMO_DNA="ATGGCTGCTGCTGCTGCTGCTGCTGCT"
         @test !isfile(joinpath(dir, "aa_tables", "Family", "Genus_alpha.txt"))
         @test isfile(joinpath(dir, "aa_tables", "Family", "Genus_beta.txt"))
         @test !isfile(cache) && !isfile(check) && !isfile(report)
-        @test isempty(AASV.fasta_files(joinpath(dir, "alignments", "Family", "genus")))
-        @test isempty(AASV.fasta_files(joinpath(dir, "alignments", "Family", "family")))
+        @test isempty(AminoASV.fasta_files(joinpath(dir, "alignments", "Family", "genus")))
+        @test isempty(AminoASV.fasta_files(joinpath(dir, "alignments", "Family", "family")))
         @test isfile(joinpath(dir, "raw_sequences", "Family", ".complete"))
         align_genus_seq!(; alignment_dir=dir, taxon="Family", show_progress=false)
         @test only(read_fasta(joinpath(dir, "alignments", "Family", "genus", "Genus.fasta"))).id == "Genus_beta__two"
         @test_logs (:warn, r"No usable references") run(_ -> NamedTuple[]; overwrite=true)
-        @test isempty(AASV.fasta_files(dirname(original)))
-        @test isempty(AASV.fasta_files(joinpath(dir, "alignments", "Family", "genus")))
+        @test isempty(AminoASV.fasta_files(dirname(original)))
+        @test isempty(AminoASV.fasta_files(joinpath(dir, "alignments", "Family", "genus")))
         @test !isfile(joinpath(dir, "raw_sequences", "Family", ".complete"))
         @test read(note, String) == "keep this note"
         @test read(other, String) == ">other\nAAA\n"
@@ -290,7 +290,7 @@ end
         @test_logs (:info,r"alignment: started") (:info,r"reusing completed family") (:info,r"alignment: completed") align_species_seq!(taxonomy;alignment_dir=dir,records_provider=no_download)
         @test_logs align_species_seq!(taxonomy;alignment_dir=dir,records_provider=no_download,show_progress=false)
         @test_throws ArgumentError align_species_seq!(taxonomy;alignment_dir=dir,progress_interval=0)
-        @test length(AASV.fasta_files(joinpath(dir,"alignments","Family","species")))==2
+        @test length(AminoASV.fasta_files(joinpath(dir,"alignments","Family","species")))==2
         @test length(read_fasta(joinpath(dir,"raw_sequences_nt","Family","species","Genus_species.fasta")))==1
         @test_logs (:info,r"alignment: started") (:info,r"loading family") (:info,r"loading taxon") (:info,r"profiles: merging") (:info,r"merge completed") (:info,r"taxon completed") (:info,r"family completed") (:info,r"alignment: completed") align_genus_seq(;alignment_dir=dir)
         @test_logs (:info,r"alignment: started") (:info,r"loading family") (:info,r"loading taxon") (:info,r"taxon completed") (:info,r"family completed") (:info,r"alignment: completed") align_family_seq(;alignment_dir=dir)
@@ -330,10 +330,10 @@ end
         fasta(path,records)=(mkpath(dirname(path)); write(path,join([">$id\n$s\n" for (id,s) in records])))
         repeated=joinpath(dir,"repeated.fasta")
         fasta(repeated,["a"=>"MA","b"=>"MC","a"=>"MA"])
-        loaded=AASV.read_references(repeated)
+        loaded=AminoASV.read_references(repeated)
         @test [r.id for r in loaded.records]==["a","b"] && loaded.repeats==1
         fasta(repeated,["a"=>"MA","a"=>"MC"])
-        @test_throws ArgumentError AASV.read_references(repeated)
+        @test_throws ArgumentError AminoASV.read_references(repeated)
 
         # Earlier aasv versions put Genusother species in the Genus profile and
         # repeated whole records in family profiles.
@@ -347,7 +347,7 @@ end
             "Genus_a__2"=>"MAAA-AAAAA","Genusother_b__3"=>"MAAADAAAAA"])
         fasta(joinpath(aln,"family","Family.fasta"),["Genus_a__1"=>"MAAA-AAAAA",
             "Genus_a__2"=>"MAAA-AAAAA","Genusother_b__3"=>"MAAADAAAAA","Genus_a__1"=>"MAAA-AAAAA"])
-        refs=@test_logs (:warn,r"without a nucleotide reference") AASV.taxon_references(
+        refs=@test_logs (:warn,r"without a nucleotide reference") AminoASV.taxon_references(
             joinpath(aln,"genus","Genus.fasta"),[joinpath(nt,"Genus_a.fasta")])
         @test [r.sequence for r in refs.refs]==["MAAAAAAAA","MAAAAAAAA"]
 
@@ -398,7 +398,7 @@ end
         rm(joinpath(species,"Genus_ins.fasta"))
         align_genus_seq!(;alignment_dir=dir,overwrite=true,show_progress=false)
         @test !isfile(joinpath(dir,"logs","gap_causing_references","genus","Family","Genus.tsv"))
-        @test AASV.prune_gap_causing([Sequence("x","MA-A"),Sequence("y","MAWA")]).removed==Sequence[]
+        @test AminoASV.prune_gap_causing([Sequence("x","MA-A"),Sequence("y","MAWA")]).removed==Sequence[]
     end
 end
 
@@ -435,7 +435,7 @@ end
             (data=[(processid="$(generation[])_$offset",identification="Genus species",
                     marker_code=marker,nuc="ATG")],)
         end
-        fetch(;kwargs...)=AASV.fetch_bold_records("Family";cache_dir=dir,page_size=1,
+        fetch(;kwargs...)=AminoASV.fetch_bold_records("Family";cache_dir=dir,page_size=1,
             requester,sleeper=_->nothing,kwargs...)
         @test_throws InterruptException fetch()
         state=JSON3.read(read(joinpath(dir,"download.json"),String))
@@ -455,9 +455,9 @@ end
         empty!(urls)
         @test fetch()==records
         @test isempty(urls) # Fully cached downloads work without network access.
-        @test_throws ArgumentError AASV.fetch_bold_records("Different family";
+        @test_throws ArgumentError AminoASV.fetch_bold_records("Different family";
             cache_dir=dir,page_size=1,requester)
-        @test_throws ArgumentError AASV.fetch_bold_records("Family";
+        @test_throws ArgumentError AminoASV.fetch_bold_records("Family";
             cache_dir=dir,page_size=2,requester)
         generation[]="fresh"
         fresh=fetch(overwrite=true)
@@ -466,14 +466,14 @@ end
         @test JSON3.read(read(joinpath(dir,"download.json"),String)).pages!=state.pages
         @test !isdir(pages) # The abandoned page set is removed by the new query.
         failed=(url;timeout=0)->throw(InterruptException())
-        @test_throws InterruptException AASV.fetch_bold_records("Family";
+        @test_throws InterruptException AminoASV.fetch_bold_records("Family";
             cache_dir=dir,page_size=1,requester=failed,overwrite=true)
         @test !isfile(joinpath(dir,"download.json"))
     end
     mktempdir() do dir
         requester=(url;timeout=0)->occursin("/query?",url) ?
             (query_id="empty",) : occursin("length=0",url) ? (recordsTotal=1,) : (data=[],)
-        @test_throws ErrorException AASV.fetch_bold_records("Family";cache_dir=dir,requester)
+        @test_throws ErrorException AminoASV.fetch_bold_records("Family";cache_dir=dir,requester)
         state=JSON3.read(read(joinpath(dir,"download.json"),String))
         @test isempty(readdir(joinpath(dir,state.pages)))
     end
@@ -485,13 +485,13 @@ end
             marker_code="COI-5P",nuc="ATG")],)
         # A separate Julia process saves the first page and stops at the second.
         script="""
-        using AASV
+        using AminoASV
         requester(url;timeout=0)=occursin("/query?",url) ? (query_id="q",) :
             occursin("length=0",url) ? (recordsTotal=2,) :
             endswith(url,"start=0") ? (data=[(processid="p0",identification="Genus species",
                 marker_code="COI-5P",nuc="ATG")],) : throw(InterruptException())
         try
-            AASV.fetch_bold_records("Family";cache_dir=$(repr(dir)),page_size=1,requester,sleeper=_->nothing)
+            AminoASV.fetch_bold_records("Family";cache_dir=$(repr(dir)),page_size=1,requester,sleeper=_->nothing)
         catch e
             e isa InterruptException || rethrow()
         end
@@ -504,7 +504,7 @@ end
             push!(urls,url)
             page(parse(Int,last(split(url,"start="))))
         end
-        records=AASV.fetch_bold_records("Family";cache_dir=dir,page_size=1,requester,sleeper=_->nothing)
+        records=AminoASV.fetch_bold_records("Family";cache_dir=dir,page_size=1,requester,sleeper=_->nothing)
         @test getfield.(records,:processid)==["p0","p1"]
         @test length(urls)==1 && endswith(only(urls),"start=1")
     end
@@ -529,13 +529,13 @@ end
         """)
         vsearch=`$(Base.julia_cmd()) --startup-file=no $mock`
         names=["S1","S10","S2"]
-        @test AASV.mapped_qualities("ATGGCT","query",out,vsearch,reads,["S1"],names,40)==[fill(1e-4,6)]
-        @test AASV.mapped_qualities("ATGGCT","query",out,vsearch,reads,["S2"],names,40)≈[fill(0.01,6)]
-        files=AASV.sample_fastq_files(reads,names)
+        @test AminoASV.mapped_qualities("ATGGCT","query",out,vsearch,reads,["S1"],names,40)==[fill(1e-4,6)]
+        @test AminoASV.mapped_qualities("ATGGCT","query",out,vsearch,reads,["S2"],names,40)≈[fill(0.01,6)]
+        files=AminoASV.sample_fastq_files(reads,names)
         @test basename.(files["S10"])==["S10.fastq"] && basename.(files["S2"])==["trimmed_S2_R1.fastq"]
-        @test AASV.sample_token("S1.trimmed","S1") && !AASV.sample_token("S10","S1") && !AASV.sample_token("XS1","S1")
+        @test AminoASV.sample_token("S1.trimmed","S1") && !AminoASV.sample_token("S10","S1") && !AminoASV.sample_token("XS1","S1")
         write(joinpath(reads,"S1_S2.fastq"),"")
-        @test_throws ArgumentError AASV.sample_fastq_files(reads,names)
+        @test_throws ArgumentError AminoASV.sample_fastq_files(reads,names)
         # The ambiguity stops the analysis before any ASV is processed.
         input=DataFrame(family=["Family"],genus=["Genus"],species=["Genus a"],ASV=[DEMO_DNA],S1=[1],S2=[0],S10=[0])
         @test_throws ArgumentError asv_functional_structure!(input;output_dir=out,alignment_dir=dir,
@@ -555,17 +555,17 @@ end
             JSON3.read("{\"data\":[{\"processid\":\"x\",\"identification\":\"Genus species\",\"marker_code\":\"COI-5P\",\"nuc\":\"ATG\"}]}")
         end
     end
-    records=AASV.fetch_bold_records("Test family";page_size=1,requester,sleeper=_->nothing)
+    records=AminoASV.fetch_bold_records("Test family";page_size=1,requester,sleeper=_->nothing)
     @test length(records)==2
     @test endswith(last(urls),"start=1")
     @test occursin("Test%20family",first(urls))
-    @test_logs (:info,r"Downloading BOLD") (:info,r"BOLD download progress") (:info,r"Downloading BOLD") (:info,r"BOLD download progress") AASV.fetch_bold_records("Test family";page_size=1,requester,sleeper=_->nothing,show_progress=true)
+    @test_logs (:info,r"Downloading BOLD") (:info,r"BOLD download progress") (:info,r"Downloading BOLD") (:info,r"BOLD download progress") AminoASV.fetch_bold_records("Test family";page_size=1,requester,sleeper=_->nothing,show_progress=true)
     statuses=[503,503,200,503,200]
     pauses=Float64[]
     transport=(url;kwargs...)->HTTP.Response(popfirst!(statuses),"{}")
-    perform=AASV.make_retry_performer(;initial_wait=1,max_wait=10,max_attempts=5,transport,sleeper=x->push!(pauses,x))
+    perform=AminoASV.make_retry_performer(;initial_wait=1,max_wait=10,max_attempts=5,transport,sleeper=x->push!(pauses,x))
     perform("test"); perform("test")
     @test pauses==[1,2,4]
-    bad=AASV.make_retry_performer(;transport=(url;kwargs...)->HTTP.Response(404),sleeper=_->error("must not retry"))
+    bad=AminoASV.make_retry_performer(;transport=(url;kwargs...)->HTTP.Response(404),sleeper=_->error("must not retry"))
     @test_throws ArgumentError bad("test")
 end

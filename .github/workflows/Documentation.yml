@@ -19,9 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: AASV.jl
+          path: AminoASV.jl
       # Unregistered dependencies: docs/Project.toml and Project.toml find
-      # them next to AASV.jl through [sources] (Julia >= 1.11).
+      # them next to AminoASV.jl through [sources] (Julia >= 1.11).
       - name: Checkout ProfileAlignments
         uses: actions/checkout@v4
         with:
@@ -32,8 +32,8 @@ jobs:
           version: '1'
       - uses: julia-actions/cache@v2
       - name: Install dependencies
-        run: julia --project=AASV.jl/docs -e 'using Pkg; Pkg.instantiate()'
+        run: julia --project=AminoASV.jl/docs -e 'using Pkg; Pkg.instantiate()'
       - name: Build and deploy
-        run: julia --project=AASV.jl/docs AASV.jl/docs/make.jl
+        run: julia --project=AminoASV.jl/docs AminoASV.jl/docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

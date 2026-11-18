@@ -1,20 +1,20 @@
 using Documenter
-using AASV
+using AminoASV
 
-DocMeta.setdocmeta!(AASV, :DocTestSetup, :(using AASV); recursive=true)
+DocMeta.setdocmeta!(AminoASV, :DocTestSetup, :(using AminoASV); recursive=true)
 
 makedocs(;
-    modules=[AASV],
-    sitename="AASV.jl",
+    modules=[AminoASV],
+    sitename="AminoASV.jl",
     authors="Alex Laini",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://alexology.github.io/AASV.jl",
+        canonical="https://alexology.github.io/AminoASV.jl",
         edit_link="main",
     ),
     pages=[
         "Home" => "index.md",
-        "Using AASV from Julia" => "guide.md",
+        "Using AminoASV from Julia" => "guide.md",
         "Ported functions and differences" => "differences.md",
         "VSEARCH read quality" => "vsearch.md",
         "Local checks and provenance" => "development.md",
@@ -23,4 +23,4 @@ makedocs(;
     checkdocs=:exports,
 )
 
-deploydocs(; repo="github.com/alexology/AASV.jl", devbranch="main")
+deploydocs(; repo="github.com/alexology/AminoASV.jl", devbranch="main")

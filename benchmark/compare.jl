@@ -1,4 +1,4 @@
-using AASV, DataFrames, CSV, Statistics, Random
+using AminoASV, DataFrames, CSV, Statistics, Random
 
 root=joinpath(@__DIR__,"..","results","benchmark")
 mkpath(root)
@@ -6,7 +6,7 @@ rng=MersenneTwister(812)
 alphabet=collect("ACDEFGHIKLMNPQRSTVWY")
 base=rand(rng,alphabet,150)
 base[1]='M'; base[30]='A'; base[60]='A'
-codons=Dict(aa=>first(sort([c for (c,a) in AASV.genetic_table("5") if a==aa])) for aa in alphabet)
+codons=Dict(aa=>first(sort([c for (c,a) in AminoASV.genetic_table("5") if a==aa])) for aa in alphabet)
 to_dna(aa)=join(codons[a] for a in aa)
 
 fixtures=Dict{Int,Vector{Sequence}}()
