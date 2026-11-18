@@ -5,6 +5,30 @@
     FamilyRank
 end
 
+"""
+    SpeciesRank
+
+[`TaxonomicRank`](@ref) of species references (`:species` or `"species"` in
+keyword arguments).
+"""
+SpeciesRank
+
+"""
+    GenusRank
+
+[`TaxonomicRank`](@ref) of genus profiles merged from species references
+(`:genus` or `"genus"` in keyword arguments).
+"""
+GenusRank
+
+"""
+    FamilyRank
+
+[`TaxonomicRank`](@ref) of family profiles merged from genus profiles
+(`:family` or `"family"` in keyword arguments).
+"""
+FamilyRank
+
 rank_symbol(rank::TaxonomicRank)=rank===SpeciesRank ? :species :
     rank===GenusRank ? :genus : :family
 rank_name(rank::TaxonomicRank)=String(rank_symbol(rank))

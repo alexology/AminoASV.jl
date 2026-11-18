@@ -14,12 +14,55 @@ struct HydrophobicityMetrics
     profile::Vector{Union{Missing,Float64}}
 end
 
+"""
+    StructuralVerdict
+
+Verdict of a hydrophobicity check ([`assess_structure`](@ref)), stored in
+[`StructureAssessment`](@ref). Values: [`StructurePass`](@ref),
+[`StructureFail`](@ref), [`StructureUnavailable`](@ref), [`InvalidORF`](@ref).
+"""
 @enum StructuralVerdict begin
     StructureUnavailable
     StructurePass
     StructureFail
     InvalidORF
 end
+
+"""
+    StructureUnavailable
+
+[`StructuralVerdict`](@ref): the check could not be made because the global
+score or every position of the local profile is missing (`"UNAVAILABLE"` in
+the reports).
+"""
+StructureUnavailable
+
+"""
+    StructurePass
+
+[`StructuralVerdict`](@ref): the global Kyte-Doolittle score lies within the
+reference bounds and the fraction of positions outside the local envelope is
+below `violation_threshold` (`"PASS"` in the reports).
+"""
+StructurePass
+
+"""
+    StructureFail
+
+[`StructuralVerdict`](@ref): the global score lies outside the reference
+bounds or too many positions fall outside the local envelope (`"FAIL"` in the
+reports).
+"""
+StructureFail
+
+"""
+    InvalidORF
+
+[`StructuralVerdict`](@ref): the query has no valid open reading frame, or its
+alignment to the reference profile opens internal gaps, so no structural
+check was made (`"INVALID_ORF"` in the reports).
+"""
+InvalidORF
 
 """Typed structural assessment used by the computational core."""
 struct StructureAssessment
@@ -50,7 +93,30 @@ struct MutationObservation
     grantham_distance::Union{Nothing,Float64}
 end
 
+"""
+    ASVStatus
+
+Status of an ASV audit, stored in [`ASVAssessment`](@ref): [`ASVValid`](@ref)
+or [`ASVInvalidORF`](@ref).
+"""
 @enum ASVStatus ASVValid ASVInvalidORF
+
+"""
+    ASVValid
+
+[`ASVStatus`](@ref): the ASV was translated and aligned to the reference
+profile without internal gaps; structure and mutations were assessed.
+"""
+ASVValid
+
+"""
+    ASVInvalidORF
+
+[`ASVStatus`](@ref): no valid open reading frame, or an alignment with
+internal gaps; the structural verdict is [`InvalidORF`](@ref) and no
+mutations are reported.
+"""
+ASVInvalidORF
 
 """Typed, in-memory result of an ASV audit."""
 struct ASVAssessment
@@ -435,6 +501,11 @@ function asv_functional_structure!(asv_taxonomy;output_dir,alignment_dir,vsearch
     write_table(joinpath(resultdir,"hydrophobicity.xlsx"),all_hydro)
     df
 end
+"""
+    asv_functional_structure(asv_taxonomy; output_dir, alignment_dir, kwargs...)
+
+Same as [`asv_functional_structure!`](@ref) (name of the R aasv function).
+"""
 asv_functional_structure(args...;kwargs...)=asv_functional_structure!(args...;kwargs...)
 
 # Wait for every task before rethrowing the first failure (in task order), so no

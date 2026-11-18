@@ -1,7 +1,24 @@
-"""The sequence and FASTA API is shared with ProfileAlignments."""
+"""
+    Sequence(id, sequence)
+
+Named sequence, normalized to uppercase ASCII; alignment gaps use `-`. The
+sequence and FASTA API (`Sequence`, `Alignment`, `read_fasta`, `write_fasta`)
+is shared with ProfileAlignments.jl (`ProfileAlignments.Sequence`).
+"""
 const Sequence = ProfileAlignments.Sequence
 const Alignment = ProfileAlignments.Alignment
 const ScoringModel = ProfileAlignments.ScoringModel
+
+"""
+    ScoringModel
+
+Scoring model of the profile aligner, shared with ProfileAlignments.jl
+(`ProfileAlignments.ScoringModel`): substitution matrix, gap penalties and
+alignment mode. Pass it as `model` to [`align_sequences`](@ref) and
+[`align_profiles`](@ref).
+"""
+ScoringModel
+
 const read_fasta = ProfileAlignments.read_fasta
 const write_fasta = ProfileAlignments.write_fasta
 
@@ -115,6 +132,14 @@ function best_translation(dna;genetic_code="5",res_type=:sequence)
     kind===:sequence ? result.amino_acids : result.frame
 end
 
+"""
+    aa_table(records; genetic_code="5") -> DataFrame
+
+Codon-by-codon translation of each record, in the reading frame chosen by
+[`find_translation`](@ref) (records without a valid frame are skipped).
+Columns: `seq_id`, `position` (codon number), `triplet`, `aa`. The default
+genetic code 5 is the invertebrate mitochondrial code.
+"""
 function aa_table(records::AbstractVector{Sequence}; genetic_code="5")
     seq_ids=String[]; positions=Int[]; triplets=String[]; amino_acids=String[]
     table = genetic_table(genetic_code)

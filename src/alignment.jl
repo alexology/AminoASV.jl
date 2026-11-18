@@ -106,6 +106,12 @@ function re_align!(paths; raw_sequences=false, verbose=true, kwargs...)
     end
     paths
 end
+"""
+    re_align(paths; kwargs...)
+
+Same as [`re_align!`](@ref) (name of the R aasv function): the FASTA files in
+`paths` are modified in place.
+"""
 re_align(args...;kwargs...)=re_align!(args...;kwargs...)
 
 function append_log(log_dir, filename, rows)
@@ -172,6 +178,12 @@ function improve_alignment!(paths; print_messages=true, log_dir=nothing, kwargs.
     end
     paths
 end
+"""
+    improve_alignment(paths; kwargs...)
+
+Same as [`improve_alignment!`](@ref) (name of the R aasv function): the FASTA files in
+`paths` are modified in place.
+"""
 improve_alignment(args...;kwargs...)=improve_alignment!(args...;kwargs...)
 
 function aligned_distance(a,b)
@@ -310,4 +322,10 @@ function filter_divergent_seq!(paths; max_distance=0.10, min_seqs=4, print_messa
     show_progress && @info "Filtering divergent sequences: completed" files=total elapsed_seconds=round(time()-started;digits=1)
     paths
 end
+"""
+    filter_divergent_seq(paths; kwargs...)
+
+Same as [`filter_divergent_seq!`](@ref) (name of the R aasv function): the FASTA files in
+`paths` are modified in place.
+"""
 filter_divergent_seq(args...;kwargs...)=filter_divergent_seq!(args...;kwargs...)

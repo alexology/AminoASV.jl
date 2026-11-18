@@ -1,5 +1,8 @@
 # AASV.jl
 
+[![CI](https://github.com/alexology/AASV.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/alexology/AASV.jl/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-dev-blue.svg)](https://alexology.github.io/AASV.jl/dev/)
+
 Julia implementation of the [aasv](https://github.com/alexology/aasv) pipeline
 for the functional analysis of COI ASVs. The scientific formulas are compatible
 with R version 0.1.0, commit `9960347948da3142714deb656fcf38124b4e38d8`;
@@ -254,7 +257,7 @@ documentation in Julia.
   `1-exp(-n_ref/20)` follow the R code. Grantham distances use the original
   table, not an approximation. Hydrophobicity uses the Kyte–Doolittle scale.
 - Alignment uses the independent
-  [ProfileAlignments.jl](../ProfileAlignments.jl/README.md) package, installed
+  [ProfileAlignments.jl](https://github.com/alexology/ProfileAlignments.jl) package, installed
   as a sibling project and written entirely in Julia:
   BLOSUM62, affine gaps (`gap_open=-10`, `gap_extend=-1`), k-mer distances,
   guide tree, two progressive passes and iterative refinement.

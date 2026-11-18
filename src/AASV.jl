@@ -1,3 +1,16 @@
+"""
+    AASV
+
+Functional analysis of COI ASVs, a Julia implementation of the R pipeline
+aasv: reference profiles per species, genus and family
+([`align_species_seq!`](@ref), [`align_genus_seq!`](@ref),
+[`align_family_seq!`](@ref)), their curation ([`improve_alignment!`](@ref),
+[`filter_divergent_seq!`](@ref)), the structural (hydrophobicity) and
+mutation audit of each ASV ([`assess_asv`](@ref),
+[`asv_functional_structure!`](@ref)) and the final classification
+([`classify_asv`](@ref)). Sequences and alignments are shared with
+ProfileAlignments.jl.
+"""
 module AASV
 
 using CSV, DataFrames, HTTP, JSON3, SHA, Statistics, XLSX

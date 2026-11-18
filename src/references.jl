@@ -293,6 +293,11 @@ function align_species_seq!(taxonomy; alignment_dir=pwd(), overwrite=false,
     show_progress && @info "Species reference alignment: completed" families=length(families) processed=completed reused=skipped elapsed_seconds=round(time()-started;digits=1)
     nothing
 end
+"""
+    align_species_seq(taxonomy; kwargs...)
+
+Same as [`align_species_seq!`](@ref) (name of the R aasv function).
+"""
 align_species_seq(args...;kwargs...)=align_species_seq!(args...;kwargs...)
 
 # Records with insertions open columns that are gaps in most references; a
@@ -408,6 +413,11 @@ every query an indel at that level. Existing profiles are reused unless
 `overwrite=true`.
 """
 align_genus_seq!(;kwargs...) = merge_reference_level(GenusRank;kwargs...)
+"""
+    align_genus_seq(; kwargs...)
+
+Same as [`align_genus_seq!`](@ref) (name of the R aasv function).
+"""
 align_genus_seq(;kwargs...) = align_genus_seq!(;kwargs...)
 """Merge genus profiles into family FASTA alignments, largest profile first.
 `show_progress=true` reports families, taxa and each profile merge.
@@ -420,4 +430,9 @@ every query an indel at that level. Existing profiles are reused unless
 `overwrite=true`.
 """
 align_family_seq!(;kwargs...) = merge_reference_level(FamilyRank;kwargs...)
+"""
+    align_family_seq(; kwargs...)
+
+Same as [`align_family_seq!`](@ref) (name of the R aasv function).
+"""
 align_family_seq(;kwargs...) = align_family_seq!(;kwargs...)
